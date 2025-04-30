@@ -1,28 +1,9 @@
 import random
-import time
 import os
+import time
 
-# === SWORD DEFINITIONS ===
-default_swords = [
-    {"name": "Rusty Sword", "level": 1, "bonus": 2},
-    {"name": "Iron Blade", "level": 2, "bonus": 3},
-    {"name": "Silver Saber", "level": 3, "bonus": 4},
-    {"name": "Golden Edge", "level": 4, "bonus": 6},
-    {"name": "Crystal Sword", "level": 5, "bonus": 8}
-]
-
-# Check for smiley sword
-has_smiley_sword = os.path.exists("id.smyid")
-if has_smiley_sword:
-    default_swords.append({"name": "Smiley Sword", "level": 6, "bonus": 10})
-    print("Smiley Sword unlocked! You feel a joyful power inside you...")
-
-# Start with Rusty Sword
-current_sword = default_swords[0]
-inventory = [current_sword]
-
-# === MONSTERDATA ===
-monster_list = [
+# === MONSTERS ===
+monsters = [
     {"name": "Shadow Bat", "hp": 25, "dmg": (5, 10)},
     {"name": "Slime Crawler", "hp": 20, "dmg": (3, 8)},
     {"name": "Bone Wraith", "hp": 35, "dmg": (6, 12)},
@@ -65,95 +46,79 @@ monster_list = [
     {"name": "Howling Thorn", "hp": 40, "dmg": (5, 13)}
 ]
 
-# === GAME INIT ===
-seed = input("Enter your Elyndor seed: ")
+# === GAME VARIABLES ===
+player_hp = 100
+player_weapon = {"name": "Wooden Sword", "dmg": (5, 10)}
+inventory = [player_weapon]
+kill_count = 0
+in_battle = False
+current_monster = None
+
+# === SPECIAL SMILEY SWORD ===
+if os.path.exists("id.smyid"):
+    smiley_sword = {"name": "Smiley Sword", "dmg": (15, 25)}
+    inventory.append(smiley_sword)
+    player_weapon = smiley_sword
+
+# === SEED ===
+seed = input("Enter a world seed: ")
 random.seed(seed)
 
-hp = 100
-max_hp = 100
-monsters_defeated = 0
-in_battle = False
-
-print("\nWelcome to Elyndor!")
-print(f"You wield the {current_sword['name']} (Level {current_sword['level']}).")
-print("Type 'attack', 'heal', 'leave' during battle.")
-print("Type 'switch' outside battle to change your sword.\n")
+# === MONSTER PICK FUNCTION ===
+def spawn_monster():
+    if seed.lower() == "elder":
+        return dict(monsters[30])  # Obsidian Ant
+    else:
+        return dict(random.choice(monsters))
 
 # === GAME LOOP ===
+print("\nWelcome to Elyndor Battle Beta 1.1!\n")
 while True:
     time.sleep(1)
-
     if not in_battle and random.randint(1, 8) == 1:
-        monster = random.choice(monster_list)
-        monster_name = monster["name"]
-        monster_hp = monster["hp"]
-        monster_dmg_range = monster["dmg"]
-
+        current_monster = spawn_monster()
         in_battle = True
-        print(f"\nA wild {monster_name} appears! It has {monster_hp} HP!")
+        print(f"A wild {current_monster['name']} appeared! HP: {current_monster['hp']}")
 
-        while monster_hp > 0:
-            action = input("Your action (attack/heal/leave): ").lower()
+    if in_battle:
+        print("\n[1] Attack  [2] Heal (+20 HP)  [3] Run  [4] Switch Weapon")
+        action = input("Your choice: ")
 
-            if action == "attack":
-                damage = random.randint(5, 10) + current_sword["bonus"]
-                monster_hp -= damage
-                print(f"You strike with your {current_sword['name']} for {damage} damage! {monster_name} has {max(monster_hp, 0)} HP left.")
-                
-                if monster_hp > 0:
-                    monster_attack = random.randint(*monster_dmg_range)
-                    hp -= monster_attack
-                    print(f"The {monster_name} hits you for {monster_attack}! You have {max(hp, 0)} HP left.")
-                    if hp <= 0:
-                        print("You have fallen in battle. Game Over.")
-                        exit()
-                else:
-                    print(f"You defeated the {monster_name}!")
-                    monsters_defeated += 1
-                    hp = min(max_hp, hp + 10)
-                    print(f"You gain 10 HP. Current HP: {hp}")
+        if action == "1":
+            dmg = random.randint(*player_weapon["dmg"])
+            current_monster["hp"] -= dmg
+            print(f"You hit the {current_monster['name']} for {dmg} damage.")
 
-                    if monsters_defeated % 3 == 0:
-                        new_sword = random.choice(default_swords)
-                        if new_sword not in inventory:
-                            inventory.append(new_sword)
-                            print(f"You found a new sword: {new_sword['name']} (Level {new_sword['level']})!")
-
-                    in_battle = False
-
-            elif action == "heal":
-                print("You can't heal during battle!")
-
-            elif action == "leave":
-                print(f"You run away from the {monster_name}.")
+            if current_monster["hp"] <= 0:
+                print(f"You defeated the {current_monster['name']}!")
+                kill_count += 1
+                player_hp += 5
+                player_weapon["dmg"] = (player_weapon["dmg"][0]+1, player_weapon["dmg"][1]+1)
                 in_battle = False
-                break
-
             else:
-                print("Unknown command.")
+                mdmg = random.randint(*current_monster["dmg"])
+                player_hp -= mdmg
+                print(f"The {current_monster['name']} hits you for {mdmg} damage.")
 
-    elif not in_battle:
-        action = input("Action outside battle (wait/switch/heal/status): ").lower()
+        elif action == "2":
+            player_hp += 20
+            print("You healed +20 HP.")
 
-        if action == "wait":
-            continue
-        elif action == "heal":
-            hp = min(max_hp, hp + 15)
-            print(f"You rest and heal. HP: {hp}")
-        elif action == "status":
-            print(f"HP: {hp}/{max_hp} | Sword: {current_sword['name']} (Level {current_sword['level']})")
-        elif action == "switch":
-            print("Your swords:")
-            for i, sword in enumerate(inventory):
-                print(f"{i+1}: {sword['name']} (Level {sword['level']})")
+        elif action == "3":
+            print("You ran away!")
+            in_battle = False
 
-            choice = input("Choose sword number: ")
-            if choice.isdigit():
-                idx = int(choice) - 1
-                if 0 <= idx < len(inventory):
-                    current_sword = inventory[idx]
-                    print(f"You equip the {current_sword['name']}!")
-                else:
-                    print("Invalid sword number.")
-            else:
-                print("Please enter a valid number.")
+        elif action == "4":
+            print("Available weapons:")
+            for i, w in enumerate(inventory):
+                print(f"{i+1}: {w['name']} (Damage: {w['dmg'][0]} - {w['dmg'][1]})")
+            choice = int(input("Choose weapon number: ")) - 1
+            if 0 <= choice < len(inventory):
+                player_weapon = inventory[choice]
+                print(f"Equipped {player_weapon['name']}.")
+
+    print(f"HP: {player_hp} | Kills: {kill_count}")
+    
+    if player_hp <= 0:
+        print("\nYou have fallen in battle. Game Over.")
+        break
