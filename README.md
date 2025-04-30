@@ -1,3 +1,3 @@
 # Elyndor
 
-*Remenber* to download from the versions/releases
+**Remenber** to download from the versions/releases
